@@ -3,6 +3,8 @@ let data = { snippets: [], categories: [] };
 let currentFilter = 'all';
 let searchQuery = '';
 let editingId = null;
+let draggedCard = null;
+let draggedId = null;
 
 // 默认分类（不可删除）
 const defaultCategories = [
@@ -196,6 +198,23 @@ function bindEvents() {
     }
   });
 
+  // 事件委托：处理优先级选择
+  snippetsGrid.addEventListener('change', async (e) => {
+    if (e.target.classList.contains('priority-select')) {
+      const id = e.target.dataset.id;
+      const newPriority = e.target.value;
+      const snippet = data.snippets.find(s => s.id === id);
+      if (snippet) {
+        snippet.priority = newPriority;
+        // 重新整理顺序
+        reorderSnippets();
+        await window.electronAPI.saveData(data);
+        renderSnippets();
+        showToast('优先级已更新!');
+      }
+    }
+  });
+
   // 分类管理按钮
   document.getElementById('manageCatBtn').addEventListener('click', openCategoryModal);
   document.getElementById('categoryModalClose').addEventListener('click', closeCategoryModal);
@@ -298,9 +317,25 @@ function deleteCategory(catId) {
   showToast('分类已删除!');
 }
 
+// 优先级排序权重
+const priorityWeight = { high: 0, medium: 1, low: 2 };
+
+// 获取排序后的片段
+function getSortedSnippets(snippets) {
+  return [...snippets].sort((a, b) => {
+    const priorityA = priorityWeight[a.priority || 'medium'];
+    const priorityB = priorityWeight[b.priority || 'medium'];
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    // 同优先级按 order 排序
+    return (a.order || 0) - (b.order || 0);
+  });
+}
+
 // 渲染片段
 function renderSnippets() {
-  const filtered = data.snippets.filter(s => {
+  let filtered = data.snippets.filter(s => {
     const matchesFilter = currentFilter === 'all' || s.category === currentFilter;
     const matchesSearch = searchQuery === '' ||
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -308,6 +343,9 @@ function renderSnippets() {
       (s.description && s.description.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
+
+  // 按优先级排序
+  filtered = getSortedSnippets(filtered);
 
   if (filtered.length === 0) {
     snippetsGrid.innerHTML = `
@@ -326,11 +364,20 @@ function renderSnippets() {
     const hasUrl = s.url && s.url.trim();
     const hasFile = s.filePath && s.filePath.trim();
     const hasFolder = s.folderPath && s.folderPath.trim();
+    const priority = s.priority || 'medium';
+    const priorityLabels = { high: '高', medium: '中', low: '低' };
     return `
-      <div class="snippet-card" data-id="${s.id}">
+      <div class="snippet-card" data-id="${s.id}" draggable="true">
         <div class="snippet-header">
           <span class="snippet-name">${escapeHtml(s.name)}</span>
-          <span class="snippet-category">${catName}</span>
+          <div class="snippet-header-right">
+            <select class="priority-select priority-${priority}" data-id="${s.id}" title="优先级">
+              <option value="high" ${priority === 'high' ? 'selected' : ''}>🔴 高</option>
+              <option value="medium" ${priority === 'medium' ? 'selected' : ''}>🟡 中</option>
+              <option value="low" ${priority === 'low' ? 'selected' : ''}>🟢 低</option>
+            </select>
+            <span class="snippet-category">${catName}</span>
+          </div>
         </div>
         <div class="snippet-content">${escapeHtml(s.content)}</div>
         ${s.description ? `<div class="snippet-desc">${escapeHtml(s.description)}</div>` : ''}
@@ -346,6 +393,100 @@ function renderSnippets() {
       </div>
     `;
   }).join('');
+
+  // 绑定拖拽事件
+  bindDragEvents();
+}
+
+// 绑定拖拽事件
+function bindDragEvents() {
+  const cards = snippetsGrid.querySelectorAll('.snippet-card');
+
+  cards.forEach(card => {
+    card.addEventListener('dragstart', handleDragStart);
+    card.addEventListener('dragend', handleDragEnd);
+    card.addEventListener('dragover', handleDragOver);
+    card.addEventListener('dragenter', handleDragEnter);
+    card.addEventListener('dragleave', handleDragLeave);
+    card.addEventListener('drop', handleDrop);
+  });
+}
+
+// 拖拽开始
+function handleDragStart(e) {
+  draggedCard = this;
+  draggedId = this.dataset.id;
+  this.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', draggedId);
+}
+
+// 拖拽结束
+function handleDragEnd(e) {
+  this.classList.remove('dragging');
+  document.querySelectorAll('.snippet-card').forEach(card => {
+    card.classList.remove('drag-over');
+  });
+  draggedCard = null;
+  draggedId = null;
+}
+
+// 拖拽经过
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+// 拖拽进入
+function handleDragEnter(e) {
+  e.preventDefault();
+  if (this !== draggedCard) {
+    this.classList.add('drag-over');
+  }
+}
+
+// 拖拽离开
+function handleDragLeave(e) {
+  this.classList.remove('drag-over');
+}
+
+// 放置
+async function handleDrop(e) {
+  e.preventDefault();
+  this.classList.remove('drag-over');
+
+  if (this === draggedCard || !draggedId) return;
+
+  const targetId = this.dataset.id;
+  const draggedSnippet = data.snippets.find(s => s.id === draggedId);
+  const targetSnippet = data.snippets.find(s => s.id === targetId);
+
+  if (!draggedSnippet || !targetSnippet) return;
+
+  // 如果优先级相同，交换 order
+  if ((draggedSnippet.priority || 'medium') === (targetSnippet.priority || 'medium')) {
+    const tempOrder = draggedSnippet.order || 0;
+    draggedSnippet.order = targetSnippet.order || 0;
+    targetSnippet.order = tempOrder;
+  } else {
+    // 如果优先级不同，将拖拽的片段改为目标的优先级
+    draggedSnippet.priority = targetSnippet.priority || 'medium';
+    draggedSnippet.order = (targetSnippet.order || 0) + 0.5;
+    // 重新整理 order
+    reorderSnippets();
+  }
+
+  await window.electronAPI.saveData(data);
+  renderSnippets();
+  showToast('顺序已更新!');
+}
+
+// 重新整理片段顺序
+function reorderSnippets() {
+  const sorted = getSortedSnippets(data.snippets);
+  sorted.forEach((s, index) => {
+    s.order = index;
+  });
 }
 
 // HTML 转义

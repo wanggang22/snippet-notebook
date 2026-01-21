@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Snippet Notebook</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 自定义标题栏 -->
+  <div class="titlebar">
+    <div class="titlebar-drag">
+      <span class="titlebar-title">Snippet Notebook</span>
+    </div>
+    <div class="titlebar-buttons">
+      <button class="titlebar-btn" id="minBtn">─</button>
+      <button class="titlebar-btn" id="maxBtn">□</button>
+      <button class="titlebar-btn close" id="closeBtn">×</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>分类</h2>
+        <button class="manage-cat-btn" id="manageCatBtn" title="管理分类">⚙</button>
+      </div>
+      <nav class="category-nav" id="categoryNav">
+        <!-- 动态生成 -->
+      </nav>
+      <div class="sidebar-footer">
+        <button class="action-btn" id="importBtn">📥 导入</button>
+        <button class="action-btn" id="exportBtn">📤 导出</button>
+      </div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+      <div class="toolbar">
+        <div class="search-wrapper">
+          <input type="text" class="search-box" id="searchBox" placeholder="搜索片段...">
+        </div>
+        <button class="add-btn" id="addBtn">+ 添加片段</button>
+      </div>
+
+      <div class="snippets-grid" id="snippetsGrid">
+        <!-- 动态生成 -->
+      </div>
+    </main>
+  </div>
+
+  <!-- 添加/编辑片段模态框 -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle">添加新片段</h2>
+        <button class="modal-close" id="modalClose">×</button>
+      </div>
+      <form id="snippetForm">
+        <div class="form-group">
+          <label for="snippetName">名称</label>
+          <input type="text" id="snippetName" placeholder="例如: claude-api-key" required>
+        </div>
+        <div class="form-group">
+          <label for="snippetContent">内容 (要复制的文本)</label>
+          <textarea id="snippetContent" placeholder="输入要复制的内容..." required></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="snippetCategory">分类</label>
+            <select id="snippetCategory">
+              <!-- 动态生成 -->
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="snippetDesc">描述</label>
+          <input type="text" id="snippetDesc" placeholder="简短描述这个片段">
+        </div>
+        <div class="form-group">
+          <label for="snippetUrl">绑定网址 (可选)</label>
+          <input type="text" id="snippetUrl" placeholder="例如: https://docs.anthropic.com">
+        </div>
+        <div class="form-group">
+          <label for="snippetFile">绑定文件 (可选)</label>
+          <div class="file-input-wrapper">
+            <input type="text" id="snippetFile" placeholder="选择或输入文件路径...">
+            <button type="button" class="btn-browse" id="browseFileBtn">浏览...</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="snippetFolder">绑定文件夹 (可选)</label>
+          <div class="folder-input-wrapper">
+            <input type="text" id="snippetFolder" placeholder="选择或输入文件夹路径...">
+            <button type="button" class="btn-browse" id="browseFolderBtn">浏览...</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="snippetExe">绑定程序 (可选)</label>
+          <div class="exe-input-wrapper">
+            <input type="text" id="snippetExe" placeholder="选择或输入 EXE 文件路径...">
+            <button type="button" class="btn-browse" id="browseExeBtn">浏览...</button>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="btn-cancel" id="cancelBtn">取消</button>
+          <button type="submit" class="btn-save">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 分类管理模态框 -->
+  <div class="modal" id="categoryModal">
+    <div class="modal-content modal-wide">
+      <div class="modal-header">
+        <h2 class="modal-title">管理分类</h2>
+        <button class="modal-close" id="categoryModalClose">×</button>
+      </div>
+      <div class="category-manager">
+        <div class="category-list" id="categoryList">
+          <!-- 动态生成 -->
+        </div>
+        <div class="add-category-form">
+          <input type="text" id="newCatIcon" placeholder="图标" maxlength="2" class="cat-icon-input">
+          <input type="text" id="newCatId" placeholder="ID (英文)" class="cat-id-input">
+          <input type="text" id="newCatName" placeholder="显示名称" class="cat-name-input">
+          <button type="button" class="btn-add-cat" id="addCatBtn">+ 添加</button>
+        </div>
+      </div>
+      <div class="modal-buttons">
+        <button type="button" class="btn-save" id="saveCatBtn">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 关闭选择对话框 -->
+  <div class="modal" id="closeModal">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h2 class="modal-title">关闭应用</h2>
+      </div>
+      <div class="close-options">
+        <p>请选择关闭方式：</p>
+        <div class="close-buttons">
+          <button class="close-option-btn tray-btn" id="minimizeToTrayBtn">
+            <span class="close-icon">📥</span>
+            <span class="close-text">最小化到托盘</span>
+            <span class="close-hint">程序继续在后台运行</span>
+          </button>
+          <button class="close-option-btn quit-btn" id="quitAppBtn">
+            <span class="close-icon">🚪</span>
+            <span class="close-text">退出程序</span>
+            <span class="close-hint">完全关闭应用</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 提示 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

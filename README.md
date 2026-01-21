@@ -18,21 +18,39 @@
 
 ## 安装方式
 
-### 方式 1：下载安装包（推荐）
+### Windows 用户
 
-前往 [Releases](../../releases) 页面下载对应系统的安装包：
+下载 `dist` 文件夹中的安装包：
+- **Snippet Notebook Setup 1.0.0.exe** - 安装版
+- **Snippet Notebook 1.0.0.exe** - 便携版（免安装）
 
-| 系统 | 文件 |
-|------|------|
-| Windows | `Snippet Notebook Setup x.x.x.exe` (安装版) 或 `Snippet Notebook x.x.x.exe` (便携版) |
-| macOS | `Snippet Notebook-x.x.x.dmg` |
-| Linux | `Snippet Notebook-x.x.x.AppImage` 或 `.deb` |
+### macOS 用户
 
-### 方式 2：从源码运行
+macOS 需要从源码运行：
+
+```bash
+# 1. 安装 Node.js（如果没有）
+# 从 https://nodejs.org 下载安装
+
+# 2. 克隆仓库
+git clone https://github.com/wanggang22/snippet-notebook.git
+cd snippet-notebook
+
+# 3. 安装依赖
+npm install
+
+# 4. 运行
+npm start
+
+# 或者打包成 .dmg 安装包
+npm run build:mac
+```
+
+### 从源码运行（所有平台）
 
 ```bash
 # 克隆仓库
-git clone https://github.com/你的用户名/snippet-notebook.git
+git clone https://github.com/wanggang22/snippet-notebook.git
 cd snippet-notebook
 
 # 安装依赖
